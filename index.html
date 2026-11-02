@@ -598,6 +598,15 @@
       cursor: pointer
     }
 
+    /* Show the fee details only for the selected payment method */
+    .payment-choice small {
+      display: none !important
+    }
+
+    .payment-choice:has(input:checked) small {
+      display: block !important
+    }
+
     .payment-choice:has(input:checked) {
       border-color: var(--blue);
       background: #eef6ff
@@ -690,13 +699,29 @@
     }
 
     @media(max-width:760px) {
+      /* Mobile: show the full "Your order" panel (items + complimentary gifts) instead of hiding it */
       .wrap aside {
+        display: block !important;
+        width: 100%;
+        min-width: 0
+      }
+
+      body.confirmation-page .wrap aside {
         display: none !important
       }
 
+      .wrap aside .summary {
+        padding: 18px
+      }
+
+      .wrap aside .gift-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px
+      }
+
+      /* totals are now in the full panel, so drop the duplicate totals-only cards */
       .mobile-total-card {
-        display: block;
-        margin-top: 12px
+        display: none !important
       }
 
       .step-actions .btn {
@@ -1425,7 +1450,7 @@
             id="shipTotal">Choose destination</strong></div>
         <div class="summary-line" hidden="" id="packagingRow"><span>Packaging</span><strong id="packaging">—</strong>
         </div>
-        <div class="summary-line qrfee-row" hidden="" id="paymentFeeRow"><span>QR Ph processing fee (1.5%)</span><strong
+        <div class="summary-line qrfee-row" hidden="" id="paymentFeeRow"><span>QR PH Fee (1.5%)</span><strong
             id="paymentFee">₱0.00</strong></div>
         <div class="total"><span>Grand total</span><b id="grandTotal">Select products to begin</b></div>
         <p class="tiny" id="totalHint"></p>
@@ -1740,9 +1765,27 @@
       const aside = document.querySelector('.wrap aside');
       if (aside) new MutationObserver(mirror).observe(aside, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
       mirror();
+      /* Mobile: place the "Your order" panel right above the action area of the current step
+         (step 1: Continue button; step 2: the "Confirm your order" / Submit panel) */
+      const mq = window.matchMedia('(max-width: 760px)');
+      const mainWrap = document.querySelector('main.wrap');
+      function placeSummary() {
+        if (!aside || !mainWrap) return;
+        let target = null;
+        if (mq.matches && !step1.hidden) target = step1.querySelector('.step-actions');
+        else if (mq.matches && !step2.hidden) { const agree = $('agree'); target = agree && agree.closest('.panel'); }
+        if (target && target.parentNode) {
+          if (aside.nextElementSibling !== target) { aside.style.marginBottom = '16px'; target.parentNode.insertBefore(aside, target); }
+        } else if (aside.parentNode !== mainWrap) {
+          aside.style.marginBottom = ''; mainWrap.appendChild(aside);
+        }
+      }
+      if (mq.addEventListener) mq.addEventListener('change', placeSummary);
+      placeSummary();
       function go(n) {
         document.body.classList.toggle("confirmation-page", n === 3);
         step1.hidden = n !== 1; step2.hidden = n !== 2; step3.hidden = n !== 3;
+        placeSummary();
         $('stepBadge1').classList.toggle('active', n === 1);
         $('stepBadge2').classList.toggle('active', n === 2); $('stepBadge3').classList.toggle('active', n === 3);
         window.scrollTo({ top: 0, behavior: 'smooth' });
